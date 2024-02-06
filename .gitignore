@@ -13,3 +13,5 @@ cdk.out
 .idea
 
 skip/
+
+src/*.zip
