@@ -4,7 +4,7 @@ from pathlib import Path
 
 from aws_cdk import (Stack, aws_s3 as s3, RemovalPolicy, Tags, aws_codepipeline as codepipeline,
                      aws_codepipeline_actions as codepipeline_actions,
-                     aws_iam as iam, )
+                     aws_iam as iam, CfnOutput, )
 
 from constructs import Construct
 
@@ -32,11 +32,21 @@ class S3PipelineStack(Stack):
                                 removal_policy=RemovalPolicy.DESTROY,
                                 website_index_document="index.html",
                                 website_error_document="error.html",
+                                versioned=True,
                                 block_public_access=s3.BlockPublicAccess(block_public_acls=False)
+                                # block_public_access=s3.BlockPublicAccess(block_public_acls=True)  # Adjust this based on your ACL needs
+
                                 )
 
         # apply tag to the production bucket
         Tags.of(prod_bucket).add("Bucket", "Production")
+
+        # output for the prod_bucket Static Website Hosting URL
+        CfnOutput(
+            self, "ProdBucketWebsiteURL",
+            value=f"http://{prod_bucket.bucket_name}.s3-website-{self.region}.amazonaws.com",
+            description="URL for the production static website"
+        )
 
         # load policy for codepipeline
         base_dir = Path(__file__).resolve().parent.parent
@@ -68,6 +78,7 @@ class S3PipelineStack(Stack):
             bucket=staging_bucket,
             bucket_key="src.zip",
             output=source_output,
+            trigger=codepipeline_actions.S3Trigger.EVENTS,
             variables_namespace="PipelineSourceVariables"
         )
 
@@ -78,6 +89,19 @@ class S3PipelineStack(Stack):
             input=source_output,
             extract=True,
             variables_namespace='PipelineDeployVariables',
-            access_control=s3.BucketAccessControl.PUBLIC_READ
+            # access_control=s3.BucketAccessControl.PUBLIC_READ
 
         )
+
+        # create pipeline
+        pipeline = codepipeline.Pipeline(
+            self, "DeploymentPipeline",
+            pipeline_name="DeploymentPipeline",
+            role=pipeline_role,
+            stages=[
+                codepipeline.StageProps(stage_name="Source", actions=[source_action]),
+                codepipeline.StageProps(stage_name="Deploy", actions=[deploy_action])
+            ])
+
+        # tag pipeline
+        Tags.of(pipeline).add("Project", "Production Pipeline")
