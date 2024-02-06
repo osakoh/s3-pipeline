@@ -12,7 +12,7 @@ class S3PipelineStack(Stack):
         staging_bucket = s3.Bucket(
             self,
             "StagingWebsiteBucket",
-            bucket_name="staging-website-bucket",
+            bucket_name="001-staging-website-bucket",
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -22,12 +22,12 @@ class S3PipelineStack(Stack):
 
         # prod bucket
         prod_bucket = s3.Bucket(self, "ProdWebsiteBucket",
-                                bucket_name="prod-website-bucket",
-                                versioned=False,
+                                bucket_name="001-prod-website-bucket-01",
                                 removal_policy=RemovalPolicy.DESTROY,
                                 website_index_document="index.html",
                                 website_error_document="error.html",
-                                public_read_access=True
+                                block_public_access=s3.BlockPublicAccess(block_public_acls=False)
                                 )
+
         # apply tag to the production bucket
         Tags.of(prod_bucket).add("Bucket", "Production")
