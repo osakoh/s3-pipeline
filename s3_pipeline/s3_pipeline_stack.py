@@ -1,19 +1,23 @@
-from aws_cdk import (
-    # Duration,
-    Stack,
-    # aws_sqs as sqs,
-)
+from aws_cdk import Stack, aws_s3 as s3, RemovalPolicy, CfnTag, Tags
+
 from constructs import Construct
+
 
 class S3PipelineStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # The code that defines your stack goes here
+        # source bucket
+        staging_bucket = s3.Bucket(
+            self,
+            "StagingWebsiteBucket",
+            bucket_name="staging-website-bucket",
+            versioned=True,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
 
-        # example resource
-        # queue = sqs.Queue(
-        #     self, "S3PipelineQueue",
-        #     visibility_timeout=Duration.seconds(300),
-        # )
+        # apply tags to the staging bucket
+        Tags.of(staging_bucket).add("Bucket", "Staging")
+
+
