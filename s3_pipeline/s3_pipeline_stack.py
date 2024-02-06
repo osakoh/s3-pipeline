@@ -1,4 +1,4 @@
-from aws_cdk import Stack, aws_s3 as s3, RemovalPolicy, CfnTag, Tags
+from aws_cdk import Stack, aws_s3 as s3, RemovalPolicy, Tags
 
 from constructs import Construct
 
@@ -17,7 +17,17 @@ class S3PipelineStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        # apply tags to the staging bucket
+        # apply tag to the staging bucket
         Tags.of(staging_bucket).add("Bucket", "Staging")
 
-
+        # prod bucket
+        prod_bucket = s3.Bucket(self, "ProdWebsiteBucket",
+                                bucket_name="prod-website-bucket",
+                                versioned=False,
+                                removal_policy=RemovalPolicy.DESTROY,
+                                website_index_document="index.html",
+                                website_error_document="error.html",
+                                public_read_access=True
+                                )
+        # apply tag to the production bucket
+        Tags.of(prod_bucket).add("Bucket", "Production")
