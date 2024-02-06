@@ -14,6 +14,9 @@ class S3PipelineStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # policy folder path
+        base_dir = Path(__file__).resolve().parent.parent
+
         # source bucket
         staging_bucket = s3.Bucket(
             self,
@@ -33,10 +36,23 @@ class S3PipelineStack(Stack):
                                 website_index_document="index.html",
                                 website_error_document="error.html",
                                 versioned=True,
-                                block_public_access=s3.BlockPublicAccess(block_public_acls=False)
-                                # block_public_access=s3.BlockPublicAccess(block_public_acls=True)  # Adjust this based on your ACL needs
-
+                                block_public_access=s3.BlockPublicAccess(block_public_policy=False),
+                                # access_control=s3.BucketAccessControl.PUBLIC_READ
                                 )
+
+        # load bucket policy
+        bucket_policy_file_path = base_dir / "policies/bucket_policy.json"
+
+        # open policy
+        with open(bucket_policy_file_path) as f:
+            bucket_policy = json.load(f)
+
+        # modify the policy's Resource to match the actual bucket ARN if necessary
+        bucket_policy['Statement'][0]['Resource'] = f"{prod_bucket.bucket_arn}/*"
+
+        # Apply the loaded policy to the production bucket
+        for statement in bucket_policy['Statement']:
+            prod_bucket.add_to_resource_policy(iam.PolicyStatement.from_json(statement))
 
         # apply tag to the production bucket
         Tags.of(prod_bucket).add("Bucket", "Production")
@@ -50,11 +66,11 @@ class S3PipelineStack(Stack):
 
         # load policy for codepipeline
         base_dir = Path(__file__).resolve().parent.parent
-        policy_file_path = base_dir / "policies/codepipeline_policy.json"
+        pipeline_policy_file_path = base_dir / "policies/codepipeline_policy.json"
 
         # open policy
-        with open(policy_file_path) as f:
-            policy_document = json.load(f)
+        with open(pipeline_policy_file_path) as f:
+            pipeline_policy = json.load(f)
 
         # create IAM role for codepipeline
         pipeline_role = iam.Role(
@@ -67,7 +83,7 @@ class S3PipelineStack(Stack):
         policy = iam.Policy(
             self, "PipelinePolicy",
             policy_name="S3PipelinePolicy",
-            statements=[iam.PolicyStatement.from_json(statement) for statement in policy_document['Statement']],
+            statements=[iam.PolicyStatement.from_json(statement) for statement in pipeline_policy['Statement']],
             roles=[pipeline_role]
         )
 
